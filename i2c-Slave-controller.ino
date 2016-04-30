@@ -10,8 +10,11 @@
 MAX6675 thermocouple(thermoCLK, thermoCS, thermoDO);
 
 /* Используем для питания пины Arduino */
-int vccPin = 3;
-int gndPin = 2;
+#define vccPin 3
+#define gndPin 2
+
+#define analog0Pin 0
+int analog0 = 0;
 
 // Инициализация 1-го ультразвукового датчика (Trig, Echo)
 Ultrasonic ultrasonic1(8, 9, 8700);
@@ -96,12 +99,29 @@ void StreetTankLevelCheck()
 // 4 фиксированных положения "пусто = 0", "минимум = 1", "середина = 2", "максимум = 3"
 void HotWaterTankLevelCheck()
 {
-  HotWaterTankLevel = 2;  // пока нет готового датчика временно передаем значение 2
+  analog0 = analogRead(analog0Pin);
+  //Serial.println(analog0);
+  if (analog0 < 300)
+  {
+    HotWaterTankLevel = 0;  //пусто
+  }
+
+  if ((analog0 > 300) && (analog0 < 600))
+  {
+    HotWaterTankLevel = 1;  //минимум
+  }
+
+  if ((analog0 > 600) && (analog0 < 1000))
+  {
+    HotWaterTankLevel = 2;  //середина
+  }
+
+  if (analog0 > 1000)
+  {
+    HotWaterTankLevel = 3;  //максимум
+  }
+
   SlaveResult[2] = HotWaterTankLevel;
-  //HotWaterTankLevel = 0;  //пусто
-  //HotWaterTankLevel = 1;  //минимум
-  //HotWaterTankLevel = 2;  //середина
-  //HotWaterTankLevel = 3;  //максимум
 }
 
 /* Чтение показаний термопары */
