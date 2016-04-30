@@ -109,6 +109,8 @@ void HotWaterTempCheck()
 {
   /* Получаем значение с типом float и разбираем его на целую и дробную части для передачи Master-контроллеру через i2c */
   max6675temp = thermocouple.readCelsius();
+  delay(250);
+  //Serial.println(max6675temp);
 
   /* Целая часть значения температуры */
   dataA = int(max6675temp);
