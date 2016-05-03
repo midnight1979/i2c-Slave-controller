@@ -13,8 +13,17 @@ MAX6675 thermocouple(thermoCLK, thermoCS, thermoDO);
 #define vccPin 3
 #define gndPin 2
 
+/* Переменные для уровня воды в баке с горячей водой в бане */
 #define analog0Pin 0
-int analog0 = 0;
+int analog0      = 0;
+
+/* Переменные для датчика прозрачности в накопительных емкостях */
+#define analog1Pin 2
+int analog1         = 0;
+int analog1_temp    = 0;
+int analog1_percent = 0;
+
+const int averageFactor = 5;               // коэффициент сглаживания показаний (0 = не сглаживать) - чем выше, тем больше "инерционность" - это видно на индикаторах
 
 // Инициализация 1-го ультразвукового датчика (Trig, Echo)
 Ultrasonic ultrasonic1(8, 9, 8700);
@@ -30,11 +39,14 @@ Ultrasonic ultrasonic2(6, 7, 8700);
   3 - температура термопары (целая часть)
   4 - температура термопары (дробная часть)
 */
-uint8_t SlaveResult[5] = {0, 0, 0, 0, 0};
+uint8_t SlaveResult[6] = {0, 0, 0, 0, 0, 0};
 
-//int ultrasonic1_cm          = 0;          // Расстояние от ультразвукового датчика до поверхности воды в домашней емкости (в см.)
-//int ultrasonic2_cm          = 0;          // Расстояние от ультразвукового датчика до поверхности воды в уличной емкости (в см.)
-//int HotWater_Temp           = 0;          // Температура горячей воды (показания термопары)
+// 0 - Расстояние от ультразвукового датчика до поверхности воды в домашней емкости (в см.)
+// 1 - Расстояние от ультразвукового датчика до поверхности воды в уличной емкости (в см.)
+// 2 - Уровень в емкости с горячей водой
+// 3 - Температура горячей воды целые (показания термопары)
+// 4 - Температура горячей воды десятые (показания термопары)
+// 5 - Прозрачность воды в накопительной емкости
 
 /* Переменная с типом float для получения температуры и переменные для целой и дробной частей температуры с MAX6675 */
 float max6675temp = 0;
@@ -74,25 +86,30 @@ void loop() {
   // Проверка температуры с термопары на MAX6675 (температура в баке с горячей водой)
   HotWaterTempCheck();
 
+  // Проверка прозрачности воды в накопительных емкостях
+  WaterQuality_StreetTank();
+
 }
 
 // Функция зарегистрированная как событие в секции setup() wire.onRequest
 // отправка в i2c массива с результатами замеров датчиков
 void requestEvent()
 {
-  Wire.write(SlaveResult, 5);        // ответ на запрос от Master-контроллера
+  Wire.write(SlaveResult, 6);        // ответ на запрос от Master-контроллера
 }
 
 // Получение уровня домашней емкости в см.
 void MainTankLevelCheck()
 {
   SlaveResult[0] = ultrasonic1.Ranging(CM);
+  //Serial.println(SlaveResult[0]);
 }
 
 // Получение уровня уличной емкости в см.
 void StreetTankLevelCheck()
 {
   SlaveResult[1] = ultrasonic2.Ranging(CM);
+  //Serial.println(ultrasonic2.Ranging(CM));
 }
 
 // Получение уровня бака с горячей водой в %
@@ -103,22 +120,22 @@ void HotWaterTankLevelCheck()
   //Serial.println(analog0);
   if (analog0 < 300)
   {
-    HotWaterTankLevel = 0;  //пусто
+    HotWaterTankLevel = 3;  //пусто
   }
 
   if ((analog0 > 300) && (analog0 < 600))
   {
-    HotWaterTankLevel = 1;  //минимум
+    HotWaterTankLevel = 2;  //минимум
   }
 
   if ((analog0 > 600) && (analog0 < 1000))
   {
-    HotWaterTankLevel = 2;  //середина
+    HotWaterTankLevel = 1;  //середина
   }
 
   if (analog0 > 1000)
   {
-    HotWaterTankLevel = 3;  //максимум
+    HotWaterTankLevel = 0;  //максимум
   }
 
   SlaveResult[2] = HotWaterTankLevel;
@@ -147,4 +164,23 @@ void HotWaterTempCheck()
 
   SlaveResult[3] = dataA;     // Целая часть значения температуры
   SlaveResult[4] = dataB;     // Дробная часть значения температуры
+}
+
+void WaterQuality_StreetTank()
+{
+  int oldsensorValue = analog1_temp;
+
+  analog1 = analogRead(analog1Pin);
+  //  Serial.print("RAW: ");
+  //  Serial.println(analog1);
+
+  analog1_temp = (oldsensorValue * (averageFactor - 1) + analog1) / averageFactor;
+  analog1_percent = map(analog1_temp, 0, 1023, 0, 100) + (averageFactor - 1);
+
+  //  Serial.print("average: ");
+  //  Serial.println(analog1_temp);
+  //  Serial.print("%: ");
+  //  Serial.println(analog1_percent);
+
+  SlaveResult[5] = analog1_percent;   // Прозрачность воды в накопительных емкостях
 }
