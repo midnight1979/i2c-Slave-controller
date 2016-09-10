@@ -212,7 +212,8 @@ void WaterQuality_StreetTank()
 void SaunaAirTermperature()
 {
   termo_sensor1 = analogRead(analog1Pin);
-  termo_sensor1 = map(termo_sensor1, 282, 1023, 28, 150);
+  //Serial.println(termo_sensor1);
+  termo_sensor1 = map(termo_sensor1, 11, 783, 1, 70);
   //Serial.println(termo_sensor1);
 
   SlaveResult[6] = termo_sensor1;
@@ -221,7 +222,8 @@ void SaunaAirTermperature()
 void SaunaWaterTermperature()
 {
   termo_sensor2 = analogRead(analog3Pin);
-  termo_sensor2 = map(termo_sensor2, 191, 1023, 28, 150);
+  //Serial.println(termo_sensor2);
+  termo_sensor2 = map(termo_sensor2, 11, 783, 1, 70);
   //Serial.println(termo_sensor1);
 
   SlaveResult[7] = termo_sensor2;
