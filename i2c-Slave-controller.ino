@@ -13,6 +13,14 @@ MAX6675 thermocouple(thermoCLK, thermoCS, thermoDO);
 #define vccPin 3
 #define gndPin 2
 
+/* Временно запишем значения термисторов при разных температурах
+
+  864 - 85 град.
+  617 - 40 град.
+  368 - 11 град.
+
+*/
+
 /* Переменные для уровня воды в баке с горячей водой в бане (используем A0 аналоговый вход) */
 #define analog0Pin 0
 int analog0      = 0;
@@ -31,6 +39,10 @@ int analog2_percent = 0;      // Процент прозрачности
 #define analog3Pin 3
 int termo_sensor2       = 0;      // Переменная для чтения текущих показаний датчика прозрачности
 
+/* Переменные для терморезистора в парилке (используем A1 аналоговый вход) */
+#define analog6Pin 6
+int termo_sensor3          = 0;      // Переменная для чтения текущих показаний датчика прозрачности
+
 const int averageFactor = 5;      // коэффициент сглаживания показаний (0 = не сглаживать) - чем выше, тем больше "инерционность" - это видно на индикаторах
 
 // Инициализация 1-го ультразвукового датчика (Trig, Echo)
@@ -48,8 +60,10 @@ Ultrasonic ultrasonic2(6, 7, 8700);
   4 - температура термопары (дробная часть)
   5 - процент прозрачности воды в накопительной емкости
   6 - температура воздуха в парилке
+  7 - температура воды в баке
+  8 - температура улицы
 */
-uint8_t SlaveResult[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t SlaveResult[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 /* Переменная с типом float для получения температуры и переменные для целой и дробной частей температуры с MAX6675 */
 float max6675temp = 0;        // Переменная для чтения текущий показаний термопары
@@ -100,13 +114,16 @@ void loop() {
   // Проверка температуры с термопары на MAX6675 (температура в баке с горячей водой)
   SaunaStonesTempCheck();
 
+  // Проверка температуры воздуха
+  StreetTemperature();
+
 }
 
 // Функция зарегистрированная как событие в секции setup() wire.onRequest
 // отправка в i2c массива с результатами замеров датчиков
 void requestEvent()
 {
-  Wire.write(SlaveResult, 8);        // ответ на запрос от Master-контроллера
+  Wire.write(SlaveResult, 9);        // ответ на запрос от Master-контроллера
 }
 
 // Получение уровня домашней емкости в см.
@@ -213,7 +230,7 @@ void SaunaAirTermperature()
 {
   termo_sensor1 = analogRead(analog1Pin);
   //Serial.println(termo_sensor1);
-  termo_sensor1 = map(termo_sensor1, 11, 783, 1, 70);
+  termo_sensor1 = map(termo_sensor1, 368, 864, 11, 85);
   //Serial.println(termo_sensor1);
 
   SlaveResult[6] = termo_sensor1;
@@ -223,8 +240,18 @@ void SaunaWaterTermperature()
 {
   termo_sensor2 = analogRead(analog3Pin);
   //Serial.println(termo_sensor2);
-  termo_sensor2 = map(termo_sensor2, 11, 783, 1, 70);
-  //Serial.println(termo_sensor1);
+  termo_sensor2 = map(termo_sensor2, 368, 864, 11, 85);
+  //Serial.println(termo_sensor2);
 
   SlaveResult[7] = termo_sensor2;
+}
+
+void StreetTemperature()
+{
+  termo_sensor3 = analogRead(analog6Pin);
+  //Serial.println(termo_sensor3);
+  termo_sensor3 = map(termo_sensor3, 368, 864, 11, 85);
+  //Serial.println(termo_sensor3);
+
+  SlaveResult[8] = termo_sensor3;
 }
