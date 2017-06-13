@@ -1,6 +1,9 @@
 #include <Ultrasonic.h>   // Ультразвуковые датчики HC-SR04
 #include <Wire.h>         // I2C
 #include <max6675.h>      // Термопара
+#include <DS3231.h>
+
+DS3231 clock;
 
 /* Указание портов шины SPI для MAX6675 */
 #define thermoDO 10
@@ -51,6 +54,11 @@ Ultrasonic ultrasonic1(8, 9, 8700);
 // Инициализация 2-го ультразвукового датчика (Trig, Echo)
 Ultrasonic ultrasonic2(6, 7, 8700);
 
+unsigned long previousMillis = 0;        // will store last time LED was updated
+
+// constants won't change :
+const long interval = 10000;           // interval at which to blink (milliseconds)
+
 /* Массив int для хранения результатов опроса датчиков для последующей передачи в Master-контроллер через i2c
   По порядку элементов:
   0 - расстояние в см. на ultrasonic1
@@ -62,8 +70,9 @@ Ultrasonic ultrasonic2(6, 7, 8700);
   6 - температура воздуха в парилке
   7 - температура воды в баке
   8 - температура улицы
+  9 - температура в доме
 */
-uint8_t SlaveResult[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t SlaveResult[10] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 /* Переменная с типом float для получения температуры и переменные для целой и дробной частей температуры с MAX6675 */
 float max6675temp = 0;        // Переменная для чтения текущий показаний термопары
@@ -86,10 +95,14 @@ void setup() {
   delay(1000);
   Serial.println("MAX6675 ready.");
 
-  /* Инициализация Slave-контроллера на 8 адресе i2c */
+   /* Инициализация Slave-контроллера на 8 адресе i2c */
   Wire.begin(8);                    // join i2c bus with address #8
   Wire.onRequest(requestEvent);     // register event
   Serial.println("i2c Slave started on 8 addr.");
+
+ /* Initialize DS3231 */
+  Serial.println("Initialize DS3231");
+  clock.begin();
 
 }
 
@@ -117,13 +130,16 @@ void loop() {
   // Проверка температуры воздуха
   StreetTemperature();
 
+  // Проверка температуры в доме
+  HomeTemperature();
+
 }
 
 // Функция зарегистрированная как событие в секции setup() wire.onRequest
 // отправка в i2c массива с результатами замеров датчиков
 void requestEvent()
 {
-  Wire.write(SlaveResult, 9);        // ответ на запрос от Master-контроллера
+  Wire.write(SlaveResult, 10);        // ответ на запрос от Master-контроллера
 }
 
 // Получение уровня домашней емкости в см.
@@ -255,3 +271,18 @@ void StreetTemperature()
 
   SlaveResult[8] = termo_sensor3;
 }
+
+void HomeTemperature()
+{
+  unsigned long currentMillis = millis();
+
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+
+    SlaveResult[9] = clock.readTemperature();
+    //Serial.println(SlaveResult[9]);
+  }
+
+}
+
