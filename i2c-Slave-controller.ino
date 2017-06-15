@@ -1,9 +1,6 @@
 #include <Ultrasonic.h>   // Ультразвуковые датчики HC-SR04
 #include <Wire.h>         // I2C
 #include <max6675.h>      // Термопара
-#include <DS3231.h>
-
-DS3231 clock;
 
 /* Указание портов шины SPI для MAX6675 */
 #define thermoDO 10
@@ -57,7 +54,7 @@ Ultrasonic ultrasonic2(6, 7, 8700);
 unsigned long previousMillis = 0;        // will store last time LED was updated
 
 // constants won't change :
-const long interval = 10000;           // interval at which to blink (milliseconds)
+const long interval = 3000;           // interval at which to blink (milliseconds)
 
 /* Массив int для хранения результатов опроса датчиков для последующей передачи в Master-контроллер через i2c
   По порядку элементов:
@@ -87,6 +84,9 @@ void setup() {
 
   Serial.begin(9600);
 
+  /* Выход на светодиод наличия связи с Master (LINK) */
+  pinMode(LED_BUILTIN, OUTPUT);
+
   /* Инициализация MAX6675 - термопара */
   pinMode(vccPin, OUTPUT); digitalWrite(vccPin, HIGH);
   pinMode(gndPin, OUTPUT); digitalWrite(gndPin, LOW);
@@ -95,15 +95,14 @@ void setup() {
   delay(1000);
   Serial.println("MAX6675 ready.");
 
-   /* Инициализация Slave-контроллера на 8 адресе i2c */
+  /* Инициализация Slave-контроллера на 8 адресе i2c */
   Wire.begin(8);                    // join i2c bus with address #8
   Wire.onRequest(requestEvent);     // register event
   Serial.println("i2c Slave started on 8 addr.");
 
- /* Initialize DS3231 */
-  Serial.println("Initialize DS3231");
-  clock.begin();
-
+  /* Initialize DS3231 */
+  //Serial.println("Initialize DS3231");
+  //clock.begin();
 }
 
 void loop() {
@@ -130,9 +129,8 @@ void loop() {
   // Проверка температуры воздуха
   StreetTemperature();
 
-  // Проверка температуры в доме
-  HomeTemperature();
-
+  // Link OFF
+  digitalWrite(LED_BUILTIN, LOW);   // turn the LED on (HIGH is the voltage level)
 }
 
 // Функция зарегистрированная как событие в секции setup() wire.onRequest
@@ -140,6 +138,7 @@ void loop() {
 void requestEvent()
 {
   Wire.write(SlaveResult, 10);        // ответ на запрос от Master-контроллера
+  digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
 }
 
 // Получение уровня домашней емкости в см.
@@ -225,14 +224,14 @@ void SaunaStonesTempCheck()
   датчик работает по принципу - чем выше прозрачность, тем большее выходное напряжение на входе (от 0V до 5V) */
 void WaterQuality_StreetTank()
 {
-  int oldsensorValue = analog2_temp;
+  //int oldsensorValue = analog2_temp;
 
   analog2 = analogRead(analog2Pin);
   //  Serial.print("RAW: ");
   //  Serial.println(analog2);
 
-  analog2_temp = (oldsensorValue * (averageFactor - 1) + analog2) / averageFactor;
-  analog2_percent = map(analog2_temp, 0, 1023, 0, 100) + (averageFactor - 1);
+  //analog2_temp = (oldsensorValue * (averageFactor - 1) + analog2) / averageFactor;
+  analog2_percent = map(analog2, 0, 1023, 0, 100);// + (averageFactor - 1);
 
   //  Serial.print("average: ");
   //  Serial.println(analog2_temp);
@@ -271,18 +270,3 @@ void StreetTemperature()
 
   SlaveResult[8] = termo_sensor3;
 }
-
-void HomeTemperature()
-{
-  unsigned long currentMillis = millis();
-
-  if (currentMillis - previousMillis >= interval) {
-    // save the last time you blinked the LED
-    previousMillis = currentMillis;
-
-    SlaveResult[9] = clock.readTemperature();
-    //Serial.println(SlaveResult[9]);
-  }
-
-}
-
